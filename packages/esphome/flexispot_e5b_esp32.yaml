@@ -1,15 +1,15 @@
 substitutions:
   device_name: Flexispot E5B
   name: flexispot_e5b
-  min_height: "71.0" # Min height + 0.1
-  #min_height: "62.1" # Min height + 0.1  (original one)
+  #  min_height: "71.0" # Min height + 0.1
+  min_height: "62.1" # Min height + 0.1  (original one)
   max_height: "125.1" # Max height - 0.1
-  
+
 esphome:
   name: ${name}
   comment: ${device_name}
-  platform: esp32 # TODO Change to your platform
-  board: esp32dev # TODO Change to your board
+  platform: esp32
+  board: esp32dev
   includes:
     - desk_height_sensor.h
     - desk_keypad.h
@@ -28,7 +28,7 @@ captive_portal:
 # Enable logging
 logger:
   level: DEBUG
-  baud_rate: 0
+  baud_rate: 460800
 
 # Enable Home Assistant API
 api:
@@ -41,39 +41,41 @@ script:
   - id: screen_timer
     mode: restart
     then:
-     # on_start
-     - logger.log: "Executing screen timer command"
-     - switch.turn_on: virtual_screen
-     - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
-     - if:
-        condition:
-         binary_sensor.is_off : screen
-        then:
-        - switch.turn_off: virtual_screen
-     # on_end
+      # on_start
+      - logger.log: "Executing screen timer command"
+      - switch.turn_on: virtual_screen
+      - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
+      - if:
+          condition:
+            binary_sensor.is_off : screen
+          then:
+            - switch.turn_off: virtual_screen
+      # on_end
 
   - id: script_start_command
     mode: restart
     then:
-     - logger.log: "Executing Empty command"
-     - if:
-        condition:
-         switch.is_off : virtual_screen
-        then:
-          - script.execute: screen_timer
-          - delay: 480ms
-        else:
-          - script.execute: screen_timer
-    
+      - logger.log: "Executing Empty command"
+      - if:
+          condition:
+            switch.is_off : virtual_screen
+          then:
+            - script.execute: screen_timer
+            - delay: 480ms
+          else:
+            - script.execute: screen_timer
+
 uart:
   - id: desk_uart
     baud_rate: 9600
-    tx_pin: GPIO17
-    rx_pin: GPIO16
+    tx_pin: GPIO16
+    rx_pin: GPIO17
+  #    tx_pin: GPIO17
+  #    rx_pin: GPIO16
   - id: keypad_uart
     baud_rate: 9600
-    tx_pin: GPIO1
-    rx_pin: GPIO3
+    tx_pin: GPIO1 # TODO
+    rx_pin: GPIO3 # TODO
 
 sensor:
   - platform: wifi_signal
@@ -121,10 +123,10 @@ sensor:
             {
               if(id(desk_command).state == 1)
               {
-                id(desk).open();
+                id(desk).make_call().set_command_open().perform();
               } else if(id(desk_command).state == 2)
               {
-                id(desk).close();
+                id(desk).make_call().set_command_close().perform();
               } else if(id(desk_command).state == 3)
               {
                 id(switch_preset1).turn_on();
@@ -142,7 +144,7 @@ sensor:
                 id(switch_alarm).turn_on();
               } else if(id(desk_command).state == 8)
               {
-                id(desk).stop();
+                id(desk).make_call().set_command_stop().perform();
               }
             }
 
@@ -150,7 +152,8 @@ binary_sensor:
   - platform: gpio
     name: "Screen"
     id: "screen"
-    pin: GPIO22
+    #    pin: GPIO22 # TODO
+    pin: GPIO2 # TODO
     internal: false
     on_press:
       then:
@@ -174,12 +177,12 @@ switch:
     id: switch_preset1
     icon: mdi:numeric-1-box
     turn_on_action:
-     - logger.log: "Executing Preset 1 command"
-     - script.execute: script_start_command
-     - script.wait: script_start_command
-     - uart.write:
-         id: desk_uart
-         data: [0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d]
+      - logger.log: "Executing Preset 1 command"
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: [0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d]
     internal: false
 
   - platform: template
@@ -187,12 +190,12 @@ switch:
     id: switch_preset2
     icon: mdi:numeric-2-box
     turn_on_action:
-     - logger.log: "Executing Preset 2 command"
-     - script.execute: script_start_command
-     - script.wait: script_start_command
-     - uart.write:
-         id: desk_uart
-         data: [0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d]
+      - logger.log: "Executing Preset 2 command"
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: [0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d]
     internal: false
 
   - platform: template
@@ -200,12 +203,12 @@ switch:
     id: switch_preset3
     icon: mdi:numeric-3-box
     turn_on_action:
-     - logger.log: "Executing Preset 3 command"
-     - script.execute: script_start_command
-     - script.wait: script_start_command
-     - uart.write:
-         id: desk_uart
-         data: [0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d]
+      - logger.log: "Executing Preset 3 command"
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: [0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d]
     internal: false
 
   - platform: template
@@ -213,12 +216,12 @@ switch:
     id: switch_m
     icon: mdi:alpha-m-circle
     turn_on_action:
-     - logger.log: "Executing Preset 3 command"
-     - script.execute: script_start_command
-     - script.wait: script_start_command
-     - uart.write:
-         id: desk_uart
-         data: [0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d]
+      - logger.log: "Executing Preset 3 command"
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: [0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d]
     internal: false
 
   - platform: template
@@ -226,7 +229,7 @@ switch:
     id: switch_alarm
     icon: mdi:alpha-m-circle
     turn_on_action:
-     - logger.log: "Executing Alarm command"
+      - logger.log: "Executing Alarm command"
     #  - script.execute: script_start_command
     #  - script.wait: script_start_command
     #  - uart.write:
@@ -238,7 +241,8 @@ switch:
     name: "Virtual Screen"
     id: "virtual_screen"
     pin:
-      number: GPIO23
+      #      number: GPIO23
+      number: GPIO22
       mode: OUTPUT
     restore_mode: ALWAYS_OFF
     internal: false
@@ -285,14 +289,14 @@ cover:
               id: desk_height
               below: ${max_height}
           then:
-          - logger.log: "Executing up command"
-          # - cover.template.publish:
-          #     id: desk
-          #     current_operation: OPENING
-          - switch.turn_on: switch_up
-          - delay: 108ms
-          
-          
+            - logger.log: "Executing up command"
+            # - cover.template.publish:
+            #     id: desk
+            #     current_operation: OPENING
+            - switch.turn_on: switch_up
+            - delay: 108ms
+
+
     
     # Move desk down
     close_action:
@@ -302,14 +306,14 @@ cover:
           condition:
             sensor.in_range:
               id: desk_height
-              above: ${min_height} 
+              above: ${min_height}
           then:
-          - logger.log: "Executing down command"
-          # - cover.template.publish:
-          #     id: desk
-          #     current_operation: CLOSING
-          - switch.turn_on: switch_down
-          - delay: 108ms
+            - logger.log: "Executing down command"
+            # - cover.template.publish:
+            #     id: desk
+            #     current_operation: CLOSING
+            - switch.turn_on: switch_down
+            - delay: 108ms
 
-   
+
     optimistic: true
