@@ -203,13 +203,13 @@ sensor:
       on_value:
         then:
           - script.execute: screen_timer
-          # - cover.template.publish:
-          #    id: desk
-          #    position: !lambda |-
-          #        // The sensor outputs values from standing_desk_min_height (cm) to standing_desk_max_height (cm)
-          #        // We need to translate this to 0 - 1 scale.
-          #        float position = (float(x) - float(${standing_desk_min_height})) / (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
-          #        return position;
+          - cover.template.publish:
+              id: desk
+              position: !lambda |-
+                // The sensor outputs values from standing_desk_min_height (cm) to standing_desk_max_height (cm)
+                // We need to translate this to 0 - 1 scale.
+                float position = (float(x) - float(${standing_desk_min_height})) / (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
+                return position;
 
 #  - platform: custom
 #    lambda: |-
@@ -369,15 +369,19 @@ switch:
     optimistic: true
     turn_off_action:
       - switch.turn_off: internal_up
+      - cover.template.publish:
+          id: desk
+          current_operation: IDLE
     turn_on_action:
       - switch.turn_off: switch_down
+      - cover.template.publish:
+          id: desk
+          current_operation: OPENING
       - switch.turn_on: internal_up
       - while:
           condition:
             and:
-              - sensor.in_range:
-                  id: desk_height
-                  below: ${standing_desk_max_height}
+              - lambda: !lambda "return id(desk_height).state < ${standing_desk_max_height} - 0.1;"
               - switch.is_on: internal_up # cannot reference self. Will report off
           then:
             - uart.write:
@@ -404,15 +408,19 @@ switch:
     optimistic: true
     turn_off_action:
       - switch.turn_off: internal_down
+      - cover.template.publish:
+          id: desk
+          current_operation: IDLE
     turn_on_action:
       - switch.turn_off: switch_up
+      - cover.template.publish:
+          id: desk
+          current_operation: CLOSING
       - switch.turn_on: internal_down
       - while:
           condition:
             and:
-              - sensor.in_range:
-                  id: desk_height
-                  above: ${standing_desk_min_height}
+              - lambda: !lambda "return id(desk_height).state > ${standing_desk_min_height} + 0.1;"
               - switch.is_on: internal_down # cannot reference self. Will report off
           then:
             - uart.write:
@@ -433,9 +441,12 @@ cover:
     name: "Desk"
     id: "desk"
     assumed_state: true
-    # has_position: true
-    # position_action:
-    #   - logger.log: "Requesting action change"
+    has_position: true
+    position_action:
+     - number.set:
+         id: target_desk_height
+         value: !lambda |-
+           return float(${standing_desk_min_height}) + float(pos) * (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
 
     # Move desk up
     open_action:
