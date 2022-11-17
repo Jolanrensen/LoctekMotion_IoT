@@ -6,7 +6,7 @@ public:
     DeskHeightSensor(UARTComponent *parent) : UARTDevice(parent) {}
 
     float value = 0.0;
-    float lastPublished = -1;
+    float lastPublished = state;
     unsigned long history[5];
 
     int msg_len = 0;
@@ -90,25 +90,25 @@ public:
                 if (msg_type == 0x12 && msg_len == 7) {
                     // Empty height
                     if (incomingByte == 0) {
-                        //ESP_LOGD("DEBUG", "Height 1 is EMPTY -> 0x%02x", incomingByte);
-                        //deskSerial.write(command_wakeup, sizeof(command_wakeup));
+                        ESP_LOGD("DEBUG", "Height 1 is EMPTY -> 0x%02x", incomingByte);
+                        // deskSerial.write(command_wakeup, sizeof(command_wakeup));
                     } else {
                         valid = true;
-                        //   ESP_LOGD("DEBUG", "Height 1 is: 0x%02x", incomingByte);
+                        ESP_LOGD("DEBUG", "Height 1 is: 0x%02x", incomingByte);
                     }
                 }
             }
 
             // Fifth byte is second height digit
             if (history[3] == 0x9b) {
-                if (valid == true) {
-                    //ESP_LOGD("DEBUG", "Height 2 is: 0x%02x", incomingByte);
+                if (valid) {
+                    ESP_LOGD("DEBUG", "Height 2 is: 0x%02x", incomingByte);
                 }
             }
 
             // Sixth byte is third height digit
             if (history[4] == 0x9b) {
-                if (valid == true) {
+                if (valid) {
                     int height1 = hex_to_int(history[1]) * 100;
                     int height2 = hex_to_int(history[0]) * 10;
                     int height3 = hex_to_int(incomingByte);
@@ -121,7 +121,7 @@ public:
                             finalHeight = finalHeight / 10;
                         }
                         value = finalHeight;
-                        // ESP_LOGD("DeskHeightSensor", "Current height is: %f", finalHeight);
+                        ESP_LOGD("DeskHeightSensor", "Current height is: %f", finalHeight);
                     }
                 }
             }

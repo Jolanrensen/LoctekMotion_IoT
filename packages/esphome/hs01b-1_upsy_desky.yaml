@@ -69,7 +69,7 @@ script:
             switch.is_off: virtual_screen
           then:
             - script.execute: screen_timer
-            - delay: 480ms
+            - delay: 1s
           else:
             - script.execute: screen_timer
 
@@ -88,8 +88,8 @@ uart:
 
   - id: keypad_uart
     baud_rate: 9600
-    tx_pin: GPIO1 # TODO
-    rx_pin: GPIO3 # TODO
+    tx_pin: GPIO1 # TODO unused?
+    rx_pin: GPIO19
 
 number:
   - platform: template
@@ -131,20 +131,25 @@ number:
     step: 0.1
     set_action:
       then:
+#        - lambda: !lambda |-
+#            float pos = (float(x) - float(${standing_desk_min_height})) / (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
+#            if (abs(pos - id(desk).position) > 0.1) {
+#              id(desk).make_call().set_position(pos).perform();
+#            }
         - script.execute: script_start_command
         - script.wait: script_start_command
         - if:
             condition: # if desk height is higher than target
               lambda: !lambda |-
                 return ((DeskHeightSensor*) id(desk_height))->get_last_read() > x;
+                // return id(desk_height).state > x;
             then:
               - switch.turn_on: switch_down
               - wait_until:
                   condition:
-                    or:
-                      - switch.is_off: switch_down
-                      - lambda: !lambda |-
-                          return ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x;
+                    lambda: !lambda |-
+                      return ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x || !id(switch_down).state;
+                      // return id(desk_height).state <= x;
                   timeout: 20s
               - switch.turn_off: switch_down
 #              - while:
@@ -162,10 +167,9 @@ number:
               - switch.turn_on: switch_up
               - wait_until:
                   condition:
-                    or:
-                      - switch.is_off: switch_up
-                      - lambda: !lambda |-
-                          return ((DeskHeightSensor*) id(desk_height))->get_last_read() >= x;
+                    lambda: !lambda |-
+                      return ((DeskHeightSensor*) id(desk_height))->get_last_read() >= x || !id(switch_up).state;
+                      // return id(desk_height).state >= x;
                   timeout: 20s
               - switch.turn_off: switch_up
 #              - while:
@@ -211,53 +215,52 @@ sensor:
                 float position = (float(x) - float(${standing_desk_min_height})) / (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
                 return position;
 
-#  - platform: custom
-#    lambda: |-
-#      auto desk_keypad_sensor = new DeskKeypad(id(keypad_uart));
-#      App.register_component(desk_keypad_sensor);
-#      return {desk_keypad_sensor};
-#    sensors:
-#      id: "desk_command"
-#      name: Desk command
-#      icon: "mdi:counter"
-#      on_value:
-#        then:
-#          lambda: |-
-#            if(!id(keypad_switch).state)
-#            {
-#              if(id(desk_command).state == 1)
-#              {
-#                id(desk).make_call().set_command_open().perform();
-#              } else if(id(desk_command).state == 2)
-#              {
-#                id(desk).make_call().set_command_close().perform();
-#              } else if(id(desk_command).state == 3)
-#              {
-#                id(switch_preset1).turn_on();
-#              } else if(id(desk_command).state == 4)
-#              {
-#                id(switch_preset2).turn_on();
-#              } else if(id(desk_command).state == 5)
-#              {
-#                id(switch_preset3).turn_on();
-#              }  else if(id(desk_command).state == 6)
-#              {
-#                id(switch_m).turn_on();
-#              } else if(id(desk_command).state == 7)
-#              {
-#                id(switch_alarm).turn_on();
-#              } else if(id(desk_command).state == 8)
-#              {
-#                id(desk).make_call().set_command_stop().perform();
-#              }
-#            }
+  - platform: custom
+    lambda: |-
+      auto desk_keypad_sensor = new DeskKeypad(id(keypad_uart));
+      App.register_component(desk_keypad_sensor);
+      return {desk_keypad_sensor};
+    sensors:
+      id: "desk_command"
+      name: Desk command
+      icon: "mdi:counter"
+      on_value:
+        then:
+          lambda: |-
+            if(!id(keypad_switch).state)
+            {
+              if(id(desk_command).state == 1)
+              {
+                id(desk).make_call().set_command_open().perform();
+              } else if(id(desk_command).state == 2)
+              {
+                id(desk).make_call().set_command_close().perform();
+              } else if(id(desk_command).state == 3)
+              {
+                id(switch_preset1).turn_on();
+              } else if(id(desk_command).state == 4)
+              {
+                id(switch_preset2).turn_on();
+              } else if(id(desk_command).state == 5)
+              {
+                id(switch_preset3).turn_on();
+              }  else if(id(desk_command).state == 6)
+              {
+                id(switch_m).turn_on();
+              } else if(id(desk_command).state == 7)
+              {
+                id(switch_alarm).turn_on();
+              } else if(id(desk_command).state == 8)
+              {
+                id(desk).make_call().set_command_stop().perform();
+              }
+            }
 
 binary_sensor:
   - platform: gpio
-    name: "Screen"
+    name: "Screen (pin 20)"
     id: "screen"
-    #    pin: GPIO22 # TODO
-    pin: GPIO2 # TODO
+    pin: GPIO21
     internal: false
     on_press:
       then:
@@ -342,10 +345,9 @@ switch:
     internal: false
 
   - platform: gpio
-    name: "Virtual Screen"
+    name: "Virtual Screen for desk (pin 20)"
     id: "virtual_screen"
     pin:
-      #      number: GPIO23
       number: GPIO22
       mode: OUTPUT
     restore_mode: ALWAYS_OFF
@@ -461,6 +463,8 @@ cover:
 
     # Move desk down
     close_action:
+      - script.execute: script_start_command
+      - script.wait: script_start_command
       - logger.log: "Executing down command"
       - switch.turn_on: switch_down
 
