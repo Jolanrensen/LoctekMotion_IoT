@@ -53,11 +53,12 @@ script:
       - logger.log: "Executing screen timer command"
       - switch.turn_on: virtual_screen
       - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
-      - if:
-          condition:
-            binary_sensor.is_off: screen
-          then:
-            - switch.turn_off: virtual_screen
+#      - if:
+#          condition:
+            # binary_sensor.is_off: screen
+#          then:
+            # - switch.turn_off: virtual_screen
+      - switch.turn_on: switch_empty
       # on_end
 
   - id: script_start_command
@@ -141,14 +142,14 @@ number:
         - if:
             condition: # if desk height is higher than target
               lambda: !lambda |-
-                return ((DeskHeightSensor*) id(desk_height))->get_last_read() > x;
+                return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() > x;
                 // return id(desk_height).state > x;
             then:
               - switch.turn_on: switch_down
               - wait_until:
                   condition:
                     lambda: !lambda |-
-                      return ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x || !id(switch_down).state;
+                      return (!isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) && ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x) || !id(switch_down).state;
                       // return id(desk_height).state <= x;
                   timeout: 20s
               - switch.turn_off: switch_down
@@ -383,7 +384,7 @@ switch:
       - while:
           condition:
             and:
-              - lambda: !lambda "return id(desk_height).state < ${standing_desk_max_height} - 0.1;"
+              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state < ${standing_desk_max_height} - 0.1;"
               - switch.is_on: internal_up # cannot reference self. Will report off
           then:
             - uart.write:
@@ -422,7 +423,7 @@ switch:
       - while:
           condition:
             and:
-              - lambda: !lambda "return id(desk_height).state > ${standing_desk_min_height} + 0.1;"
+              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state > ${standing_desk_min_height} + 0.1;"
               - switch.is_on: internal_down # cannot reference self. Will report off
           then:
             - uart.write:
