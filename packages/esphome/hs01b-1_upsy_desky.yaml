@@ -55,9 +55,9 @@ script:
       - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
 #      - if:
 #          condition:
-            # binary_sensor.is_off: screen
+#             binary_sensor.is_off: screen
 #          then:
-            # - switch.turn_off: virtual_screen
+#             - switch.turn_off: virtual_screen
       - switch.turn_on: switch_empty
       # on_end
 
@@ -65,14 +65,14 @@ script:
     mode: restart
     then:
       - logger.log: "Executing Empty command"
-      - if:
-          condition:
-            switch.is_off: virtual_screen
-          then:
-            - script.execute: screen_timer
-            - delay: 1s
-          else:
-            - script.execute: screen_timer
+#      - if:
+#          condition:
+#            switch.is_off: virtual_screen
+#          then:
+#            - script.execute: screen_timer
+#            - delay: 1s
+#          else:
+      - script.execute: screen_timer
 
 uart:
   - id: desk_uart
@@ -263,12 +263,12 @@ binary_sensor:
     id: "screen"
     pin: GPIO21
     internal: false
-    on_press:
-      then:
-        - switch.turn_on: virtual_screen
-    on_release:
-      then:
-        - switch.turn_off: virtual_screen
+#    on_press:
+#      then:
+#        - switch.turn_on: virtual_screen
+#    on_release:
+#      then:
+#        - switch.turn_off: virtual_screen
 
 switch:
   - platform: template
@@ -351,7 +351,7 @@ switch:
     pin:
       number: GPIO22
       mode: OUTPUT
-    restore_mode: ALWAYS_OFF
+    restore_mode: ALWAYS_ON
     internal: false
 
   - platform: template
