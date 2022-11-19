@@ -52,26 +52,29 @@ script:
       # on_start
       - logger.log: "Executing screen timer command"
       - switch.turn_on: virtual_screen
+
+      # keypad screen needs to receive empty command to turn off, works only after timeout
       - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
-#      - if:
-#          condition:
-#             binary_sensor.is_off: screen
-#          then:
-#             - switch.turn_off: virtual_screen
       - switch.turn_on: switch_empty
+      - delay: 1s
+      - if:
+          condition:
+             binary_sensor.is_off: screen
+          then:
+             - switch.turn_off: virtual_screen
       # on_end
 
   - id: script_start_command
     mode: restart
     then:
       - logger.log: "Executing Empty command"
-#      - if:
-#          condition:
-#            switch.is_off: virtual_screen
-#          then:
-#            - script.execute: screen_timer
-#            - delay: 1s
-#          else:
+      - if:
+          condition:
+            switch.is_off: virtual_screen
+          then:
+            - script.execute: screen_timer
+            - delay: 1s
+          else:
       - script.execute: screen_timer
 
 uart:
@@ -89,7 +92,7 @@ uart:
 
   - id: keypad_uart
     baud_rate: 9600
-    tx_pin: GPIO1 # TODO unused?
+    tx_pin: GPIO1 # unused
     rx_pin: GPIO19
 
 number:
@@ -132,59 +135,41 @@ number:
     step: 0.1
     set_action:
       then:
-#        - lambda: !lambda |-
-#            float pos = (float(x) - float(${standing_desk_min_height})) / (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
-#            if (abs(pos - id(desk).position) > 0.1) {
-#              id(desk).make_call().set_position(pos).perform();
-#            }
+        - switch.turn_on: internal_moving_to_target
         - script.execute: script_start_command
         - script.wait: script_start_command
-        - if:
-            condition: # if desk height is higher than target
-              lambda: !lambda |-
-                return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() > x;
-                // return id(desk_height).state > x;
+        - while:
+            condition:
+              and:
+                - switch.is_on: internal_moving_to_target
+                - lambda: !lambda |-
+                    return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) ||
+                      to_string(((DeskHeightSensor*) id(desk_height))->get_last_read()) != to_string(((float)((int)(x * 10))) / 10);
             then:
-              - switch.turn_on: switch_down
-              - wait_until:
-                  condition:
-                    lambda: !lambda |-
-                      return (!isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) && ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x) || !id(switch_down).state;
-                      // return id(desk_height).state <= x;
-                  timeout: 20s
-              - switch.turn_off: switch_down
-#              - while:
-#                  condition: # while desk height is higher than target
-#                    and:
-#                      - switch.is_on: desk_is_moving
-#                      - lambda: !lambda |-
-#                          return ((DeskHeightSensor*) id(desk_height))->get_last_read() >= x;
-#                  then:
-#                    - uart.write:
-#                        id: desk_uart # move down
-#                        data: [ 0x9b, 0x06, 0x02, 0x02, 0x00, 0x0c, 0xa0, 0x9d ]
-#                    - delay: 0ms
-            else:
-              - switch.turn_on: switch_up
-              - wait_until:
-                  condition:
-                    lambda: !lambda |-
-                      return ((DeskHeightSensor*) id(desk_height))->get_last_read() >= x || !id(switch_up).state;
-                      // return id(desk_height).state >= x;
-                  timeout: 20s
-              - switch.turn_off: switch_up
-#              - while:
-#                  condition: # while desk height is lower than target
-#                    and:
-#                      - switch.is_on: desk_is_moving
-#                      - lambda: !lambda |-
-#                          return ((DeskHeightSensor*) id(desk_height))->get_last_read() <= x;
-#                  then:
-#                    - uart.write:
-#                        id: desk_uart # move up
-#                        data: [ 0x9b, 0x06, 0x02, 0x01, 0x00, 0xfc, 0xa0, 0x9d ]
-#                    - delay: 0ms
-#        - switch.turn_off: desk_is_moving
+              - while:
+                  condition: # while desk height is higher than target
+                    and:
+                      - switch.is_on: internal_moving_to_target
+                      - lambda: !lambda |-
+                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() > (((float)((int)(x * 10))) / 10);
+                  then:
+                    - uart.write:
+                        id: desk_uart # move down
+                        data: [ 0x9b, 0x06, 0x02, 0x02, 0x00, 0x0c, 0xa0, 0x9d ]
+                    - delay: 0ms
+              - while:
+                  condition: # while desk height is lower than target
+                    and:
+                      - switch.is_on: internal_moving_to_target
+                      - lambda: !lambda |-
+                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() < (((float)((int)(x * 10))) / 10);
+                  then:
+                    - uart.write:
+                        id: desk_uart # move up
+                        data: [ 0x9b, 0x06, 0x02, 0x01, 0x00, 0xfc, 0xa0, 0x9d ]
+                    - delay: 0ms
+        - switch.turn_off: internal_moving_to_target
+        - script.execute: script_start_command
 
 sensor:
   - platform: wifi_signal
@@ -263,9 +248,9 @@ binary_sensor:
     id: "screen"
     pin: GPIO21
     internal: false
-#    on_press:
-#      then:
-#        - switch.turn_on: virtual_screen
+    on_press:
+      then:
+        - switch.turn_on: virtual_screen # turn on virtual_screen once a button is pressed and screen is off
 #    on_release:
 #      then:
 #        - switch.turn_off: virtual_screen
@@ -351,9 +336,18 @@ switch:
     pin:
       number: GPIO22
       mode: OUTPUT
-    restore_mode: ALWAYS_ON
+    restore_mode: ALWAYS_ON # physical screen defaults to "ON" as well, allows for button control in this case
     internal: false
 
+  - platform: template
+    name: internal_moving_to_target
+    id: internal_moving_to_target
+    restore_state: false
+    assumed_state: false
+    optimistic: true
+    internal: true
+
+  # cannot reference self. Will report off, so additional internal switch is used for the state
   - platform: template
     name: internal_up
     id: internal_up
@@ -370,12 +364,8 @@ switch:
     restore_state: false
     assumed_state: false
     optimistic: true
-    turn_off_action:
-      - switch.turn_off: internal_up
-      - cover.template.publish:
-          id: desk
-          current_operation: IDLE
     turn_on_action:
+      - switch.turn_off: internal_moving_to_target
       - switch.turn_off: switch_down
       - cover.template.publish:
           id: desk
@@ -384,15 +374,21 @@ switch:
       - while:
           condition:
             and:
-              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state < ${standing_desk_max_height} - 0.1;"
-              - switch.is_on: internal_up # cannot reference self. Will report off
+              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state < ${standing_desk_max_height};"
+              - switch.is_on: internal_up
           then:
             - uart.write:
                 id: desk_uart # move up
                 data: [ 0x9b, 0x06, 0x02, 0x01, 0x00, 0xfc, 0xa0, 0x9d ]
-            - delay: 0ms
+            - delay: 0ms # essential (upsy desky crashes otherwise)
       - switch.turn_off: switch_up
+    turn_off_action:
+      - switch.turn_off: internal_up
+      - cover.template.publish:
+          id: desk
+          current_operation: IDLE
 
+  # cannot reference self. Will report off, so additional internal switch is used for the state
   - platform: template
     name: internal_down
     id: internal_down
@@ -409,12 +405,8 @@ switch:
     restore_state: false
     assumed_state: false
     optimistic: true
-    turn_off_action:
-      - switch.turn_off: internal_down
-      - cover.template.publish:
-          id: desk
-          current_operation: IDLE
     turn_on_action:
+      - switch.turn_off: internal_moving_to_target
       - switch.turn_off: switch_up
       - cover.template.publish:
           id: desk
@@ -423,14 +415,19 @@ switch:
       - while:
           condition:
             and:
-              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state > ${standing_desk_min_height} + 0.1;"
-              - switch.is_on: internal_down # cannot reference self. Will report off
+              - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state > ${standing_desk_min_height};"
+              - switch.is_on: internal_down
           then:
             - uart.write:
                 id: desk_uart # move down
                 data: [ 0x9b, 0x06, 0x02, 0x02, 0x00, 0x0c, 0xa0, 0x9d ]
-            - delay: 0ms
+            - delay: 0ms # essential (upsy desky crashes otherwise)
       - switch.turn_off: switch_down
+    turn_off_action:
+      - switch.turn_off: internal_down
+      - cover.template.publish:
+          id: desk
+          current_operation: IDLE
 
   - platform: uart
     name: "Empty command"
@@ -446,10 +443,10 @@ cover:
     assumed_state: true
     has_position: true
     position_action:
-     - number.set:
-         id: target_desk_height
-         value: !lambda |-
-           return float(${standing_desk_min_height}) + float(pos) * (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
+      - number.set:
+          id: target_desk_height
+          value: !lambda |-
+            return float(${standing_desk_min_height}) + float(pos) * (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
 
     # Move desk up
     open_action:
@@ -459,6 +456,7 @@ cover:
       - switch.turn_on: switch_up
 
     stop_action:
+      - switch.turn_off: internal_moving_to_target
       - switch.turn_off: switch_up
       - switch.turn_off: switch_down
 

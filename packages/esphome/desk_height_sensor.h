@@ -137,7 +137,7 @@ public:
 
             // End byte
             if (incomingByte == 0x9d) {
-                if (value && value != lastPublished) {
+                if (value && value != lastPublished && !isnan(value)) {
                     publish_state(value);
                     lastPublished = value;
                 }
