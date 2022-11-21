@@ -27,7 +27,7 @@ public:
     void loop() override {
         while (available() > 0) {
             byte incomingByte = read();
-            //ESP_LOGD("DEBUG", "Incoming byte is: %08x", incomingByte);
+            // ESP_LOGD("DEBUG", "Incoming byte is: %08x", incomingByte);
             // First byte, start of a packet
             if (incomingByte == 0x9b) {
                 // Reset message length
@@ -81,7 +81,7 @@ public:
                 lastPublished = mReturnCommand;
             }
 
-            // Save byte buffer to history arrary
+            // Save byte buffer to history array
             history[2] = history[1];
             history[1] = history[0];
             history[0] = incomingByte;

@@ -7,7 +7,10 @@ substitutions:
   standing_desk_max_height: "98.5" # Max height
   desk_height_name: "Desk Height"
   target_desk_height_name: "Target Desk Height"
-  standing_desk_height_units: "cm"
+  standing_desk_height_units: "cm" # only unit supported currently
+  preset_1: "62.0"
+  preset_2: "62.0"
+  preset_3: "62.0"
 
 esphome:
   name: ${name}
@@ -54,7 +57,7 @@ script:
       - switch.turn_on: virtual_screen
 
       # keypad screen needs to receive empty command to turn off, works only after timeout
-      - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
+      - delay: 14s  # timer length (keypad screen timeout is 10s + 4s buffer)
       - switch.turn_on: switch_empty
       - delay: 1s
       - if:
@@ -171,6 +174,39 @@ number:
         - switch.turn_off: internal_moving_to_target
         - script.execute: script_start_command
 
+  - platform: template
+    name: Preset 1
+    id: preset_1_height
+    min_value: ${standing_desk_min_height}
+    max_value: ${standing_desk_max_height}
+    unit_of_measurement: ${standing_desk_height_units}
+    initial_value: ${preset_1}
+    restore_value: true
+    optimistic: true
+    step: 0.1
+
+  - platform: template
+    name: Preset 2
+    id: preset_2_height
+    min_value: ${standing_desk_min_height}
+    max_value: ${standing_desk_max_height}
+    unit_of_measurement: ${standing_desk_height_units}
+    initial_value: ${preset_2}
+    restore_value: true
+    optimistic: true
+    step: 0.1
+
+  - platform: template
+    name: Preset 3
+    id: preset_3_height
+    min_value: ${standing_desk_min_height}
+    max_value: ${standing_desk_max_height}
+    unit_of_measurement: ${standing_desk_height_units}
+    initial_value: ${preset_3}
+    restore_value: true
+    optimistic: true
+    step: 0.1
+
 sensor:
   - platform: wifi_signal
     name: "WiFi Signal"
@@ -270,12 +306,16 @@ switch:
     id: switch_preset1
     icon: mdi:numeric-1-box
     turn_on_action:
-      - logger.log: "Executing Preset 1 command"
-      - script.execute: script_start_command
-      - script.wait: script_start_command
-      - uart.write:
-          id: desk_uart
-          data: [ 0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d ]
+      - number.set:
+          id: target_desk_height
+          value: !lambda |-
+            return float(id(preset_1_height).state);
+#      - logger.log: "Executing Preset 1 command"
+#      - script.execute: script_start_command
+#      - script.wait: script_start_command
+#      - uart.write:
+#          id: desk_uart
+#          data: [ 0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d ]
     internal: false
 
   - platform: template
@@ -283,12 +323,16 @@ switch:
     id: switch_preset2
     icon: mdi:numeric-2-box
     turn_on_action:
-      - logger.log: "Executing Preset 2 command"
-      - script.execute: script_start_command
-      - script.wait: script_start_command
-      - uart.write:
-          id: desk_uart
-          data: [ 0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d ]
+      - number.set:
+          id: target_desk_height
+          value: !lambda |-
+            return float(id(preset_2_height).state);
+#      - logger.log: "Executing Preset 2 command"
+#      - script.execute: script_start_command
+#      - script.wait: script_start_command
+#      - uart.write:
+#          id: desk_uart
+#          data: [ 0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d ]
     internal: false
 
   - platform: template
@@ -296,12 +340,16 @@ switch:
     id: switch_preset3
     icon: mdi:numeric-3-box
     turn_on_action:
-      - logger.log: "Executing Preset 3 command"
-      - script.execute: script_start_command
-      - script.wait: script_start_command
-      - uart.write:
-          id: desk_uart
-          data: [ 0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d ]
+      - number.set:
+          id: target_desk_height
+          value: !lambda |-
+            return float(id(preset_3_height).state);
+#      - logger.log: "Executing Preset 3 command"
+#      - script.execute: script_start_command
+#      - script.wait: script_start_command
+#      - uart.write:
+#          id: desk_uart
+#          data: [ 0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d ]
     internal: false
 
   - platform: template
@@ -323,11 +371,11 @@ switch:
     icon: mdi:alpha-m-circle
     turn_on_action:
       - logger.log: "Executing Alarm command"
-    #  - script.execute: script_start_command
-    #  - script.wait: script_start_command
-    #  - uart.write:
-    #      id: desk_uart
-    #      data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
     internal: false
 
   - platform: gpio
@@ -429,6 +477,7 @@ switch:
           id: desk
           current_operation: IDLE
 
+  # Used to clear the screen (only works after 10s time with no screen updates)
   - platform: uart
     name: "Empty command"
     id: switch_empty
