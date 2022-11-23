@@ -421,12 +421,14 @@ switch:
     id: switch_alarm
     icon: mdi:alpha-m-circle
     turn_on_action:
-      - logger.log: "Executing Alarm command"
-      - script.execute: script_start_command
-      - script.wait: script_start_command
-      - uart.write:
-          id: desk_uart
-          data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
+      - switch.turn_off: saving_height
+      - switch.turn_off: internal_moving_to_target
+#      - logger.log: "Executing Alarm command"
+#      - script.execute: script_start_command
+#      - script.wait: script_start_command
+#      - uart.write:
+#          id: desk_uart
+#          data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
     internal: false
 
   - platform: gpio
@@ -464,6 +466,7 @@ switch:
     assumed_state: false
     optimistic: true
     turn_on_action:
+      - switch.turn_off: saving_height
       - switch.turn_off: internal_moving_to_target
       - switch.turn_off: switch_down
       - cover.template.publish:
@@ -505,6 +508,7 @@ switch:
     assumed_state: false
     optimistic: true
     turn_on_action:
+      - switch.turn_off: saving_height
       - switch.turn_off: internal_moving_to_target
       - switch.turn_off: switch_up
       - cover.template.publish:
