@@ -221,7 +221,7 @@ sensor:
       App.register_component(desk_height_sensor);
       return {desk_height_sensor};
     sensors:
-      id: "desk_height"
+      id: desk_height
       name: Desk Height
       unit_of_measurement: ${standing_desk_height_units}
       accuracy_decimals: 1
@@ -243,7 +243,7 @@ sensor:
       App.register_component(desk_keypad_sensor);
       return {desk_keypad_sensor};
     sensors:
-      id: "desk_command"
+      id: desk_command
       name: Desk command
       icon: "mdi:counter"
       on_value:
@@ -302,14 +302,34 @@ switch:
     optimistic: true
 
   - platform: template
+    name: Saving current height
+    icon: mdi:save
+    id: saving_height
+    internal: false
+    restore_state: false
+    assumed_state: false
+    optimistic: true
+
+  - platform: template
     name: "Preset 1"
     id: switch_preset1
     icon: mdi:numeric-1-box
     turn_on_action:
-      - number.set:
-          id: target_desk_height
-          value: !lambda |-
-            return float(id(preset_1_height).state);
+      - if:
+          condition:
+            switch.is_on: saving_height
+          then:
+            - switch.turn_off: saving_height
+            - number.set:
+                id: preset_1_height
+                value: !lambda |-
+                  return float(id(desk_height).state);
+          else:
+            - delay: 500ms # delay so "Empty Command" can happen before setting target height
+            - number.set:
+                id: target_desk_height
+                value: !lambda |-
+                  return float(id(preset_1_height).state);
 #      - logger.log: "Executing Preset 1 command"
 #      - script.execute: script_start_command
 #      - script.wait: script_start_command
@@ -323,10 +343,21 @@ switch:
     id: switch_preset2
     icon: mdi:numeric-2-box
     turn_on_action:
-      - number.set:
-          id: target_desk_height
-          value: !lambda |-
-            return float(id(preset_2_height).state);
+      - if:
+          condition:
+            switch.is_on: saving_height
+          then:
+            - switch.turn_off: saving_height
+            - number.set:
+                id: preset_2_height
+                value: !lambda |-
+                  return float(id(desk_height).state);
+          else:
+            - delay: 500ms # delay so "Empty Command" can happen before setting target height
+            - number.set:
+                id: target_desk_height
+                value: !lambda |-
+                  return float(id(preset_2_height).state);
 #      - logger.log: "Executing Preset 2 command"
 #      - script.execute: script_start_command
 #      - script.wait: script_start_command
@@ -340,10 +371,21 @@ switch:
     id: switch_preset3
     icon: mdi:numeric-3-box
     turn_on_action:
-      - number.set:
-          id: target_desk_height
-          value: !lambda |-
-            return float(id(preset_3_height).state);
+      - if:
+          condition:
+            switch.is_on: saving_height
+          then:
+            - switch.turn_off: saving_height
+            - number.set:
+                id: preset_3_height
+                value: !lambda |-
+                  return float(id(desk_height).state);
+          else:
+            - delay: 500ms # delay so "Empty Command" can happen before setting target height
+            - number.set:
+                id: target_desk_height
+                value: !lambda |-
+                  return float(id(preset_3_height).state);
 #      - logger.log: "Executing Preset 3 command"
 #      - script.execute: script_start_command
 #      - script.wait: script_start_command
@@ -357,12 +399,21 @@ switch:
     id: switch_m
     icon: mdi:alpha-m-circle
     turn_on_action:
-      - logger.log: "Executing Preset 3 command"
-      - script.execute: script_start_command
-      - script.wait: script_start_command
-      - uart.write:
-          id: desk_uart
-          data: [ 0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d ]
+      - if:
+          condition:
+            switch.is_on: saving_height
+          then:
+            - switch.turn_off: saving_height
+          else:
+            - switch.turn_on: saving_height
+#            - delay: 5s
+#            - switch.turn_off: saving_height
+#      - logger.log: "Executing Preset 3 command"
+#      - script.execute: script_start_command
+#      - script.wait: script_start_command
+#      - uart.write:
+#          id: desk_uart
+#          data: [ 0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d ]
     internal: false
 
   - platform: template
