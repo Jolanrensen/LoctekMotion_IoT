@@ -57,7 +57,7 @@ script:
       - switch.turn_on: virtual_screen
 
       # keypad screen needs to receive empty command to turn off, works only after timeout
-      - delay: 14s  # timer length (keypad screen timeout is 10s + 4s buffer)
+      - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
       - switch.turn_on: switch_empty
       - delay: 1s
       - if:
@@ -287,6 +287,7 @@ binary_sensor:
     on_press:
       then:
         - switch.turn_on: virtual_screen # turn on virtual_screen once a button is pressed and screen is off
+        - script.execute: screen_timer
 #    on_release:
 #      then:
 #        - switch.turn_off: virtual_screen
@@ -416,13 +417,18 @@ switch:
 #          data: [ 0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d ]
     internal: false
 
+  # can be used for anything you like in home assistant!
   - platform: template
     name: "Alarm"
     id: switch_alarm
-    icon: mdi:alpha-m-circle
+    icon: mdi:alpha-a-circle
+    assumed_state: false
+    optimistic: true
     turn_on_action:
       - switch.turn_off: saving_height
       - switch.turn_off: internal_moving_to_target
+      - delay: 500ms
+      - switch.turn_off: switch_alarm
 #      - logger.log: "Executing Alarm command"
 #      - script.execute: script_start_command
 #      - script.wait: script_start_command
