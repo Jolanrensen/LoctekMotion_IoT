@@ -48,6 +48,15 @@ api:
 ota:
   password: !secret ha_api_password
 
+# use switch_fire_command to execute a UART command like
+# "9b 06 02 02 00 0c a0 9d" set in input_text.desk_uart_command in Home Assistant
+# directly to the desk.
+text_sensor:
+  - platform: homeassistant
+    name: Desk Uart Command
+    id: desk_uart_command
+    entity_id: input_text.desk_uart_command
+
 script:
   - id: screen_timer
     mode: restart
@@ -57,20 +66,13 @@ script:
       - switch.turn_on: virtual_screen
 
       # keypad screen needs to receive empty command to turn off, works only after timeout
-      - delay: 12s  # timer length (keypad screen timeout is 10s + 2s buffer)
+      - delay: 15s  # timer length (keypad screen timeout is 10s + 2s buffer)
       - switch.turn_on: switch_empty
-      - delay: 1s
-      - if:
-          condition:
-             binary_sensor.is_off: screen
-          then:
-             - switch.turn_off: virtual_screen
       # on_end
 
   - id: script_start_command
-    mode: restart
+    mode: parallel
     then:
-      - logger.log: "Executing Empty command"
       - if:
           condition:
             switch.is_off: virtual_screen
@@ -78,7 +80,7 @@ script:
             - script.execute: screen_timer
             - delay: 1s
           else:
-      - script.execute: screen_timer
+            - script.execute: screen_timer
 
 uart:
   - id: desk_uart
@@ -139,6 +141,7 @@ number:
     set_action:
       then:
         - switch.turn_on: internal_moving_to_target
+        - delay: 200ms
         - script.execute: script_start_command
         - script.wait: script_start_command
         - while:
@@ -281,16 +284,22 @@ sensor:
 binary_sensor:
   - platform: gpio
     name: "Screen (pin 20)"
-    id: "screen"
+    id: screen
     pin: GPIO21
     internal: false
     on_press:
       then:
         - switch.turn_on: virtual_screen # turn on virtual_screen once a button is pressed and screen is off
         - script.execute: screen_timer
-#    on_release:
-#      then:
-#        - switch.turn_off: virtual_screen
+        - delay: 120s # to be sure the screen turns off after a while
+        - if:
+            condition:
+              binary_sensor.is_on: screen
+            then:
+              - switch.turn_on: switch_empty
+    on_release:
+      then:
+        - switch.turn_off: virtual_screen
 
 switch:
   - platform: template
@@ -312,6 +321,23 @@ switch:
     optimistic: true
 
   - platform: template
+    name: Fire command
+    id: switch_fire_command
+    internal: false
+    restore_state: false
+    assumed_state: false
+    optimistic: true
+    turn_on_action:
+      - script.execute: script_start_command
+      - script.wait: script_start_command
+      - uart.write:
+          id: desk_uart
+          data: !lambda |-
+            string command = (string) id(desk_uart_command).state;
+            return DeskKeypad::hexToBytes(command);
+      - delay: 0ms
+
+  - platform: template
     name: "Preset 1"
     id: switch_preset1
     icon: mdi:numeric-1-box
@@ -331,12 +357,12 @@ switch:
                 id: target_desk_height
                 value: !lambda |-
                   return float(id(preset_1_height).state);
-#      - logger.log: "Executing Preset 1 command"
-#      - script.execute: script_start_command
-#      - script.wait: script_start_command
-#      - uart.write:
-#          id: desk_uart
-#          data: [ 0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d ]
+    #      - logger.log: "Executing Preset 1 command"
+    #      - script.execute: script_start_command
+    #      - script.wait: script_start_command
+    #      - uart.write:
+    #          id: desk_uart
+    #          data: [ 0x9b, 0x06, 0x02, 0x04, 0x00, 0xac, 0xa3, 0x9d ]
     internal: false
 
   - platform: template
@@ -359,12 +385,12 @@ switch:
                 id: target_desk_height
                 value: !lambda |-
                   return float(id(preset_2_height).state);
-#      - logger.log: "Executing Preset 2 command"
-#      - script.execute: script_start_command
-#      - script.wait: script_start_command
-#      - uart.write:
-#          id: desk_uart
-#          data: [ 0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d ]
+    #      - logger.log: "Executing Preset 2 command"
+    #      - script.execute: script_start_command
+    #      - script.wait: script_start_command
+    #      - uart.write:
+    #          id: desk_uart
+    #          data: [ 0x9b, 0x06, 0x02, 0x08, 0x00, 0xac, 0xa6, 0x9d ]
     internal: false
 
   - platform: template
@@ -387,12 +413,12 @@ switch:
                 id: target_desk_height
                 value: !lambda |-
                   return float(id(preset_3_height).state);
-#      - logger.log: "Executing Preset 3 command"
-#      - script.execute: script_start_command
-#      - script.wait: script_start_command
-#      - uart.write:
-#          id: desk_uart
-#          data: [ 0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d ]
+    #      - logger.log: "Executing Preset 3 command"
+    #      - script.execute: script_start_command
+    #      - script.wait: script_start_command
+    #      - uart.write:
+    #          id: desk_uart
+    #          data: [ 0x9b, 0x06, 0x02, 0x10, 0x00, 0xac, 0xac, 0x9d ]
     internal: false
 
   - platform: template
@@ -407,14 +433,14 @@ switch:
             - switch.turn_off: saving_height
           else:
             - switch.turn_on: saving_height
-#            - delay: 5s
-#            - switch.turn_off: saving_height
-#      - logger.log: "Executing Preset 3 command"
-#      - script.execute: script_start_command
-#      - script.wait: script_start_command
-#      - uart.write:
-#          id: desk_uart
-#          data: [ 0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d ]
+    #            - delay: 5s
+    #            - switch.turn_off: saving_height
+    #      - logger.log: "Executing Preset 3 command"
+    #      - script.execute: script_start_command
+    #      - script.wait: script_start_command
+    #      - uart.write:
+    #          id: desk_uart
+    #          data: [ 0x9b, 0x06, 0x02, 0x20, 0x00, 0xac, 0xb8, 0x9d ]
     internal: false
 
   # can be used for anything you like in home assistant!
@@ -429,12 +455,12 @@ switch:
       - switch.turn_off: internal_moving_to_target
       - delay: 500ms
       - switch.turn_off: switch_alarm
-#      - logger.log: "Executing Alarm command"
-#      - script.execute: script_start_command
-#      - script.wait: script_start_command
-#      - uart.write:
-#          id: desk_uart
-#          data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
+    #      - logger.log: "Executing Alarm command"
+    #      - script.execute: script_start_command
+    #      - script.wait: script_start_command
+    #      - uart.write:
+    #          id: desk_uart
+    #          data: [0x9b, 0x06, 0x02, 0x40, 0x00, 0xac, 0x90, 0x9d]
     internal: false
 
   - platform: gpio
@@ -443,7 +469,8 @@ switch:
     pin:
       number: GPIO22
       mode: OUTPUT
-    restore_mode: ALWAYS_ON # physical screen defaults to "ON" as well, allows for button control in this case
+    # physical screen defaults to "ON" when startup as well, allows for button control in this case
+    restore_mode: ALWAYS_ON
     internal: false
 
   - platform: template

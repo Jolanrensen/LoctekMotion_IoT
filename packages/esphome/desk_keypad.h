@@ -1,11 +1,28 @@
 #include "esphome.h"
 #include "esphome.h"
 #include <bitset>
+#include <vector>
+#include <iomanip>
+
+using namespace std;
 
 class DeskKeypad : public Component, public UARTDevice, public Sensor {
 
 public:
     DeskKeypad(UARTComponent *parent) : UARTDevice(parent) {}
+
+    /** Small converter function to convert "9b 06"... to vector<uint8_t> { 0x9b, 0x06, ... } */
+    static vector <uint8_t> hexToBytes(const string &hex) {
+        vector <uint8_t> bytes;
+        string copy = hex;
+        remove(copy.begin(), copy.end(), ' ');
+        for (unsigned int i = 0; i < copy.length(); i += 2) {
+            string byteString = copy.substr(i, 2);
+            uint8_t byte = (uint8_t) strtol(byteString.c_str(), nullptr, 16);
+            bytes.push_back(byte);
+        }
+        return bytes;
+    }
 
     enum Command {
         Up = 1, Down = 2, Preset1 = 3, Preset2 = 4, Preset3 = 5, M = 6, Alarm = 7, Empty = 8
