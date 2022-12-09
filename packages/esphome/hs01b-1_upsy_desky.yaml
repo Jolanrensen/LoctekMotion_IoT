@@ -71,14 +71,14 @@ script:
       # on_end
 
   - id: script_start_command
-    mode: parallel
+#    mode: parallel
     then:
       - if:
           condition:
             switch.is_off: virtual_screen
           then:
             - script.execute: screen_timer
-            - delay: 1s
+            - delay: 1.5s
           else:
             - script.execute: screen_timer
 
