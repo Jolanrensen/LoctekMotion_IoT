@@ -71,14 +71,14 @@ script:
       # on_end
 
   - id: script_start_command
-#    mode: parallel
+    #    mode: parallel
     then:
       - if:
           condition:
             switch.is_off: virtual_screen
           then:
             - script.execute: screen_timer
-            - delay: 1.5s
+            - delay: 1.8s
           else:
             - script.execute: screen_timer
 
@@ -93,6 +93,7 @@ uart:
       after:
         delimiter: "\n"
       sequence:
+        # language=C++
         - lambda: UARTDebug::log_string(direction, bytes);
 
   - id: keypad_uart
@@ -112,6 +113,7 @@ number:
     initial_value: ${standing_desk_min_height}
     on_value:
       then:
+        # language=C++
         lambda: !lambda |-
           id(target_desk_height)->traits.set_min_value(x);
 
@@ -126,6 +128,7 @@ number:
     initial_value: ${standing_desk_max_height}
     on_value:
       then:
+        # language=C++
         lambda: !lambda |-
           id(target_desk_height)->traits.set_max_value(x);
 
@@ -148,32 +151,37 @@ number:
             condition:
               and:
                 - switch.is_on: internal_moving_to_target
+                  # language=C++
                 - lambda: !lambda |-
                     return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) ||
-                      to_string(((DeskHeightSensor*) id(desk_height))->get_last_read()) != to_string(((float)((int)(x * 10))) / 10);
+                        to_string(((DeskHeightSensor*) id(desk_height))->get_last_read()) != to_string(((float)((int)(x * 10))) / 10);
             then:
               - while:
                   condition: # while desk height is higher than target
                     and:
                       - switch.is_on: internal_moving_to_target
+                        # language=C++
                       - lambda: !lambda |-
-                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() > (((float)((int)(x * 10))) / 10);
+                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || 
+                              ((DeskHeightSensor*) id(desk_height))->get_last_read() > (((float)((int)(x * 10))) / 10);
                   then:
                     - uart.write:
                         id: desk_uart # move down
                         data: [ 0x9b, 0x06, 0x02, 0x02, 0x00, 0x0c, 0xa0, 0x9d ]
-                    - delay: 0ms
+                    - delay: 10ms
               - while:
                   condition: # while desk height is lower than target
                     and:
                       - switch.is_on: internal_moving_to_target
+                        # language=C++
                       - lambda: !lambda |-
-                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || ((DeskHeightSensor*) id(desk_height))->get_last_read() < (((float)((int)(x * 10))) / 10);
+                          return isnan(((DeskHeightSensor*) id(desk_height))->get_last_read()) || 
+                              ((DeskHeightSensor*) id(desk_height))->get_last_read() < (((float)((int)(x * 10))) / 10);
                   then:
                     - uart.write:
                         id: desk_uart # move up
                         data: [ 0x9b, 0x06, 0x02, 0x01, 0x00, 0xfc, 0xa0, 0x9d ]
-                    - delay: 0ms
+                    - delay: 10ms
         - switch.turn_off: internal_moving_to_target
         - script.execute: script_start_command
 
@@ -219,6 +227,7 @@ sensor:
     name: Uptime
 
   - platform: custom
+    # language=C++
     lambda: !lambda |-
       auto desk_height_sensor = new DeskHeightSensor(id(desk_uart));
       App.register_component(desk_height_sensor);
@@ -234,6 +243,7 @@ sensor:
           - script.execute: screen_timer
           - cover.template.publish:
               id: desk
+              # language=C++
               position: !lambda |-
                 // The sensor outputs values from standing_desk_min_height (cm) to standing_desk_max_height (cm)
                 // We need to translate this to 0 - 1 scale.
@@ -241,6 +251,7 @@ sensor:
                 return position;
 
   - platform: custom
+    # language=C++
     lambda: |-
       auto desk_keypad_sensor = new DeskKeypad(id(keypad_uart));
       App.register_component(desk_keypad_sensor);
@@ -251,6 +262,7 @@ sensor:
       icon: "mdi:counter"
       on_value:
         then:
+          # language=C++
           lambda: |-
             if(!id(keypad_switch).state)
             {
@@ -332,10 +344,11 @@ switch:
       - script.wait: script_start_command
       - uart.write:
           id: desk_uart
+          # language=C++
           data: !lambda |-
             string command = (string) id(desk_uart_command).state;
             return DeskKeypad::hexToBytes(command);
-      - delay: 0ms
+      - delay: 10ms
 
   - platform: template
     name: "Preset 1"
@@ -349,12 +362,14 @@ switch:
             - switch.turn_off: saving_height
             - number.set:
                 id: preset_1_height
+                # language=C++
                 value: !lambda |-
                   return float(id(desk_height).state);
           else:
             - delay: 500ms # delay so "Empty Command" can happen before setting target height
             - number.set:
                 id: target_desk_height
+                # language=C++
                 value: !lambda |-
                   return float(id(preset_1_height).state);
     #      - logger.log: "Executing Preset 1 command"
@@ -377,12 +392,14 @@ switch:
             - switch.turn_off: saving_height
             - number.set:
                 id: preset_2_height
+                # language=C++
                 value: !lambda |-
                   return float(id(desk_height).state);
           else:
             - delay: 500ms # delay so "Empty Command" can happen before setting target height
             - number.set:
                 id: target_desk_height
+                # language=C++
                 value: !lambda |-
                   return float(id(preset_2_height).state);
     #      - logger.log: "Executing Preset 2 command"
@@ -405,12 +422,14 @@ switch:
             - switch.turn_off: saving_height
             - number.set:
                 id: preset_3_height
+                # language=C++
                 value: !lambda |-
                   return float(id(desk_height).state);
           else:
             - delay: 500ms # delay so "Empty Command" can happen before setting target height
             - number.set:
                 id: target_desk_height
+                # language=C++
                 value: !lambda |-
                   return float(id(preset_3_height).state);
     #      - logger.log: "Executing Preset 3 command"
@@ -509,13 +528,14 @@ switch:
       - while:
           condition:
             and:
+              # language=C++
               - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state < ${standing_desk_max_height};"
               - switch.is_on: internal_up
           then:
             - uart.write:
                 id: desk_uart # move up
                 data: [ 0x9b, 0x06, 0x02, 0x01, 0x00, 0xfc, 0xa0, 0x9d ]
-            - delay: 0ms # essential (upsy desky crashes otherwise)
+            - delay: 10ms # essential (upsy desky crashes otherwise)
       - switch.turn_off: switch_up
     turn_off_action:
       - switch.turn_off: internal_up
@@ -551,13 +571,14 @@ switch:
       - while:
           condition:
             and:
+              # language=C++
               - lambda: !lambda "return isnan(id(desk_height).state) || id(desk_height).state > ${standing_desk_min_height};"
               - switch.is_on: internal_down
           then:
             - uart.write:
                 id: desk_uart # move down
                 data: [ 0x9b, 0x06, 0x02, 0x02, 0x00, 0x0c, 0xa0, 0x9d ]
-            - delay: 0ms # essential (upsy desky crashes otherwise)
+            - delay: 10ms # essential (upsy desky crashes otherwise)
       - switch.turn_off: switch_down
     turn_off_action:
       - switch.turn_off: internal_down
@@ -582,6 +603,7 @@ cover:
     position_action:
       - number.set:
           id: target_desk_height
+          # language=C++
           value: !lambda |-
             return float(${standing_desk_min_height}) + float(pos) * (float(${standing_desk_max_height}) - float(${standing_desk_min_height}));
 
