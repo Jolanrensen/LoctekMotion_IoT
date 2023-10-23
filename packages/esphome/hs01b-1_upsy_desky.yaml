@@ -319,7 +319,7 @@ switch:
     icon: mdi:key
     id: "keypad_switch"
     internal: false
-    restore_state: true
+    restore_mode: RESTORE_DEFAULT_OFF
     assumed_state: false
     optimistic: true
 
@@ -328,7 +328,7 @@ switch:
     icon: mdi:save
     id: saving_height
     internal: false
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
 
@@ -336,7 +336,7 @@ switch:
     name: Fire command
     id: switch_fire_command
     internal: false
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
     turn_on_action:
@@ -495,7 +495,7 @@ switch:
   - platform: template
     name: internal_moving_to_target
     id: internal_moving_to_target
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
     internal: true
@@ -505,7 +505,7 @@ switch:
     name: internal_up
     id: internal_up
     internal: true
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
 
@@ -514,7 +514,7 @@ switch:
     id: switch_up
     icon: mdi:arrow-up-bold
     internal: false
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
     turn_on_action:
@@ -548,7 +548,7 @@ switch:
     name: internal_down
     id: internal_down
     internal: true
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
 
@@ -557,7 +557,7 @@ switch:
     id: switch_down
     icon: mdi:arrow-down-bold
     internal: false
-    restore_state: false
+    restore_mode: DISABLED
     assumed_state: false
     optimistic: true
     turn_on_action:
